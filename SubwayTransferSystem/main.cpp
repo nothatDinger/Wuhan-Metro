@@ -6,6 +6,7 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    //QTextCodec::setCodecForCStrings(QTextCodec::codecForName("GBK"));
     QPixmap pixmap(":/icon/icon/splash.png");
     QSplashScreen splash(pixmap);//程序启动画面
     for(qint64 i=5555555;i>0;i--)

@@ -1,112 +1,92 @@
 #include "subwaygraph.h"
+#include "transfer.h"
+#include "line_station.h"
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
 #include <queue>
-
+extern Stations TotalStaions[STATIONSIZE];
+extern Lines TotalLines[LINESIZE];
+extern int MaxLineNum;
+extern Edges edge[1000];
+extern int hea[400];
+extern int edgeNum;
+extern int StationNum;
+extern int LineNum;
 //构造函数
 SubwayGraph::SubwayGraph()
 {
 
 }
-
-//从文件读取数据
-bool SubwayGraph::readFileData(QString fileName)
-{
-    QFile file(fileName);
-    if(!file.open(QIODevice::ReadOnly))
-        return false;
-    QTextStream in(&file);
-    while(!in.atEnd())
-    {
-        Line line;
-        QString id, name, colour, fromTo, totalStations;
-        QString color, froms, tos;
-        bool ok;
-        int total;
-        Station station;
-        int lvIndex, svIndex1, svIndex2;
-
-        in>>id>>line.id;
-        in>>name>>line.name;
-        in>>colour>>color;
-        line.color.setRgba(color.remove(0,1).toUInt(&ok, 16));
-        in>>fromTo>>froms>>tos;
-        in>>totalStations>>total;
-
-        line.fromTo.push_back(froms);
-        line.fromTo.push_back(tos);
-        if (linesHash.count(line.name))
-        {
-            lvIndex = linesHash[line.name];
-            lines[lvIndex].fromTo.push_back(froms);
-            lines[lvIndex].fromTo.push_back(tos);
-        }
-        else
-        {
-            lvIndex = linesHash[line.name] = lines.size();
-            lines.push_back(line);
-        }
-
-        QString longlat;
-        QStringList strList;
-        for (int i=0; !in.atEnd()&&i<total; ++i)
-        {
-            in>>station.id>>station.name>>longlat;
-            strList=longlat.split(QChar(','));
-            station.longitude=strList.first().toDouble();
-            station.latitude=strList.last().toDouble();
-
-//            qDebug()<<station.longitude<<" "<<station.latitude<<"\n";
-//            d1=station.longitude;
-//            if(fabs(d1-d2)<1e-8)
-//            {
-//                qDebug()<<line.name<<" "<<station.id<<" "<<station.name<<"经度数据有误"<<"\n";
-//            }
-//            d2=d1;
-
-            if (stationsHash.count(station.name))
-            {
-                svIndex2 = stationsHash[station.name];
-            }
-            else
-            {
-                svIndex2 = stationsHash[station.name] = stations.size();
-                stations.push_back(station);
-            }
-
-            stations[svIndex2].linesInfo.insert(lvIndex);
-            lines[lvIndex].stationsSet.insert(svIndex2);
-
-            if (i)
-            {
-                lines[lvIndex].edges.insert(Edge(svIndex1, svIndex2));
-                lines[lvIndex].edges.insert(Edge(svIndex2, svIndex1));
-                insertEdge(svIndex1, svIndex2);
-            }
-            svIndex1 = svIndex2;
-        }
-
-        bool flag = id=="id:" && name=="name:" && colour=="colour:" && fromTo=="fromTo:"
-                && totalStations=="totalStations:" && ok && !in.atEnd();
-
-//        qDebug()<< "ok="<<ok<<" flag="<<flag<<line.id<< " "<<station.name<< "\n";
-
-        if(flag==false)
-        {
-            file.close();
-            clearData();
-            return false ;
-        }
-        in.readLine();
+void constructGraph();
+Solution price_min_dij(Request a);
+Solution transfer_min_dij(Request a);
+Solution time_min_dij(Request a);
+void SubwayGraph::init(){
+    constructGraph();
+    for(int i=0;i<StationNum;i++){
+        stations.push_back(TotalStaions[i]);
+        stationsHash[QString::fromUtf8(TotalStaions[i].name)] = i;
+        for(int j = hea[i];j;j = edge[j].nex)
+            insertEdge(i,edge[j].to);
     }
-    file.close();
+    for(int i=0;i<LineNum;i++)
+         if( TotalLines[i].lineID!=0){
+               lines.push_back(TotalLines[i]);
+               linesHash[QString::fromUtf8(TotalLines[i].name)] = i;
+         }
 
+    color.push_back(QColor(0xE7,0,0x12));
+    color.push_back(QColor(0,0x80,0));
+    color.push_back(QColor(0xFF,0xd1,0));
+    color.push_back(QColor(0x47,0x1e,0x86));
+    color.push_back(QColor(0x92,0x53,0xb2));
+    color.push_back(QColor(0xd7,0x00,0x6c));
+    color.push_back(QColor(0xff,0x7F,0));
+    color.push_back(QColor(0,0x00,0xff));
+    color.push_back(QColor(0x7a,0xc8,0xee));
+    color.push_back(QColor(0xc7,0xaf,0xd3));
+    color.push_back(QColor(0x84,0x1c,0x21));
+    color.push_back(QColor(0x05,0x7b,69));
+    color.push_back(QColor(0x05,0x7b,69));
+    color.push_back(QColor(0,0xFF,0));
     updateMinMaxLongiLati();
-
-    return true;
 }
 
+void SubwayGraph::set_crowd(int line, int starttime,int endtime,int tole){
+    for(int i = starttime ; i <= endtime ; i++ )
+           TotalLines[line].crowd.value[i]=tole;
+}
+
+QString SubwayGraph::timetableGet(int line, int station, int currenttime){
+    int forwardtime=0,backwardtime=0;
+    bool flag1=false,flag2 = false;
+    QString forwardfinalstation,backwardfinalstation;
+    for(int i = hea[station] ; i ; i = edge[i].nex ){
+        if( edge[i].LineID == line){
+            if( i & 1 ){
+                flag1 = true;
+                forwardtime = edge[i].first_bus_arrival_time;
+                forwardfinalstation = QString::fromUtf8(TotalStaions[TotalLines[line].finalStationID].name);
+            }
+            else{
+                flag2 = true;
+                backwardtime = edge[i].first_bus_arrival_time;
+                backwardfinalstation = QString::fromUtf8(TotalStaions[TotalLines[line].startStationID].name);
+            }
+        }
+    }
+    while( forwardtime + 1 < currenttime )
+        forwardtime += 3;
+    while( backwardtime + 1 < currenttime )
+        backwardtime += 3;
+    QString text;
+    if( flag1 )
+        text+=QString("前往"+forwardfinalstation+"方向的下一辆地铁将于"+QString::number(forwardtime/60)+":"+QString("%1").arg(forwardtime%60,2,10,QChar('0'))+"到达\n");
+    if( flag2 )
+        text+=QString("前往"+backwardfinalstation+"方向的下一辆地铁将于"+QString::number(backwardtime/60)+":"+QString("%1").arg(backwardtime%60,2,10,QChar('0'))+"到达\n");
+    return text;
+}
 //清空数据
 void SubwayGraph::clearData()
 {
@@ -115,7 +95,7 @@ void SubwayGraph::clearData()
     stationsHash.clear();
     linesHash.clear();
     edges.clear();
-    graph.clear();
+    //graph.clear();
 }
 
 //插入一条边
@@ -129,30 +109,21 @@ bool SubwayGraph::insertEdge(int n1, int n2)
     return true;
 }
 
-//生成图结构
-void SubwayGraph::makeGraph()
-{
-    graph.clear();
-    graph=QVector<QVector<Node>>(stations.size(), QVector<Node>());
-    for (auto &a : edges)
-    {
-        double dist=stations[a.first].distance(stations[a.second]);
-        graph[a.first].push_back(Node(a.second, dist));
-        graph[a.second].push_back(Node(a.first, dist));
-    }
-}
 
 
 //获取线路颜色
 QColor SubwayGraph::getLineColor(int l)
 {
-    return lines[l].color;
+    return color[l];
 }
 
 //获取线路名
 QString SubwayGraph::getLineName(int l)
 {
-    return lines[l].name;
+    //return lines[l].name;
+    //return QString(QLatin1String(TotalLines[l].name));
+    return QString::fromUtf8(TotalLines[l].name);
+
 }
 
 //获取线路hash值
@@ -182,7 +153,7 @@ QList<QString> SubwayGraph::getLinesNameList()
     QList<QString> linesNameList;
     for (auto a:lines)
     {
-        linesNameList.push_back(a.name);
+        linesNameList.push_back(QString::fromUtf8(a.name));
     }
     return linesNameList;
 }
@@ -191,10 +162,12 @@ QList<QString> SubwayGraph::getLinesNameList()
 QList<QString> SubwayGraph::getLineStationsList(int l)
 {
     QList<QString> stationsList;
-    for (auto &a:lines[l].stationsSet)
-    {
-        stationsList.push_back(stations[a].name);
-    }
+
+
+        for(int i = 0 ; i < TotalLines[l].statLength; i ++ ){
+            int a = TotalLines[l].stat[i];
+            stationsList.push_back(QString::fromUtf8(stations[a].name));
+        }
     return stationsList;
 }
 
@@ -208,40 +181,39 @@ void SubwayGraph::updateMinMaxLongiLati()
 
     for (auto &s : stations)
     {
-        minLongitude = qMin(minLongitude, s.longitude);
+        minLongitude = qMin(minLongitude, s.lontitude);
         minLatitude = qMin(minLatitude, s.latitude);
-        maxLongitude = qMax(maxLongitude, s.longitude);
+        maxLongitude = qMax(maxLongitude, s.lontitude);
         maxLatitude = qMax(maxLatitude, s.latitude);
     }
-    Station::minLongitude = minLongitude;
-    Station::minLatitude = minLatitude;
-    Station::maxLongitude = maxLongitude;
-    Station::maxLatitude = maxLatitude;
+    SubwayGraph::minLongitude = minLongitude;
+    SubwayGraph::minLatitude = minLatitude;
+    SubwayGraph::maxLongitude = maxLongitude;
+    SubwayGraph::maxLatitude = maxLatitude;
 
-//    qDebug("minLon=%.10lf, minLat=%.10lf\n", minLongitude, minLatitude);
-//    qDebug("maxLon=%.10lf, maxLat=%.10lf\n", maxLongitude, maxLatitude);
 }
 
  //获取站点最小坐标
 QPointF SubwayGraph::getMinCoord()
 {
-    return QPointF(Station::minLongitude, Station::minLatitude);
+    return QPointF(SubwayGraph::minLongitude, SubwayGraph::minLatitude);
 }
 
 //获取站点最大坐标
 QPointF SubwayGraph::getMaxCoord()
 {
-    return QPointF(Station::maxLongitude, Station::maxLatitude);
+    return QPointF(SubwayGraph::maxLongitude, SubwayGraph::maxLatitude);
 }
 
 //获取两个站点的公共所属线路
 QList<int> SubwayGraph::getCommonLines(int s1, int s2)
 {
     QList<int> linesList;
-    for (auto &s : stations[s1].linesInfo)
-    {
-        if(stations[s2].linesInfo.contains(s))
-            linesList.push_back(s);
+
+    for(int i=0;i<TotalStaions[s1].linesLength;i++){
+        for(int j=0;j<TotalStaions[s2].linesLength;j++)
+              if(TotalStaions[s1].linesInfo[i] == TotalStaions[s2].linesInfo[j])
+                  linesList.push_back(TotalStaions[s1].linesInfo[i]);
     }
     return linesList;
 }
@@ -249,19 +221,24 @@ QList<int> SubwayGraph::getCommonLines(int s1, int s2)
 //获取站点名
 QString SubwayGraph::getStationName(int s)
 {
-    return stations[s].name;
+
+    return QString::fromUtf8(stations[s].name);
 }
 
 //获取站点地理坐标
 QPointF SubwayGraph::getStationCoord(int s)
 {
-    return QPointF(stations[s].longitude, stations[s].latitude);
+    return QPointF(TotalStaions[s].lontitude, TotalStaions[s].latitude);
 }
 
 //获取站点所属线路信息
 QList<int> SubwayGraph::getStationLinesInfo(int s)
 {
-    return stations[s].linesInfo.toList();
+    //return stations[s].linesInfo.toList();
+    QList<int> linesList;
+    for(int i = 0 ; i < stations[s].linesLength; i++)
+        linesList.push_back(stations[s].linesInfo[i]);
+    return linesList;
 }
 
 //获取站点hash值
@@ -280,40 +257,22 @@ QList<QString> SubwayGraph::getStationsNameList()
     QList<QString> list;
     for (auto &a: stations)
     {
-        list.push_back(a.name);
+        list.push_back(QString(QLatin1String(a.name)));
+    }
+    return list;
+}
+
+QList<QPair<QString,QString>> SubwayGraph::traverseSimulate(QString stationName){
+    int s = getStationHash(stationName);
+    QList<QPair<QString,QString>> list;
+    for(int i = hea[s]; i ; i = edge[i].nex){
+        //list.push_back(QString(QLatin1String(TotalStaions[s].name)+"("+QLatin1String(TotalLines[edge[i].LineID].name)+")"));
+        list.push_back(qMakePair(QString::fromUtf8(TotalStaions[edge[i].to].name),QString::fromUtf8(TotalLines[edge[i].LineID].name)));
     }
     return list;
 }
 
 
-
-//添加新线路
-void SubwayGraph::addLine(QString lineName, QColor color)
-{
-    linesHash[lineName]=lines.size();
-    lines.push_back(Line(lineName,color));
-}
-
-//添加新站点
-void SubwayGraph::addStation(Station s)
-{
-    int hash=stations.size();
-    stationsHash[s.name]=hash;
-    stations.push_back(s);
-    for (auto &a: s.linesInfo)
-    {
-        lines[a].stationsSet.insert(hash);
-    }
-    updateMinMaxLongiLati();
-}
-
-//添加站点连接关系
-void SubwayGraph::addConnection(int s1, int s2, int l)
-{
-    insertEdge(s1,s2);
-    lines[l].edges.insert(Edge(s1,s2));
-    lines[l].edges.insert(Edge(s2,s1));
-}
 
 
 
@@ -330,114 +289,55 @@ void SubwayGraph::getGraph(QList<int>&stationsList, QList<Edge>&edgesList)
 }
 
 //获取最少时间的线路
-bool SubwayGraph::queryTransferMinTime(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList)
+
+Solution SubwayGraph::queryTransferMinTime(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList, int tolerance, int starttime)
 {
-#define INF 999999999
-    stationsList.clear();
-    edgesList.clear();
-
-    if(s1==s2)
-    {
-        stationsList.push_back(s2);
-        stationsList.push_back(s1);
-        return true;
+    Request a={starttime,s1,s2,tolerance,1};
+    Solution b;
+    b=time_min_spfa(a);
+    for(int i=b.len-1;i>=1;i--){
+        stationsList.push_back(b.stationlist[i].station);
+        edgesList.push_back((Edge){b.stationlist[i].station,b.stationlist[i-1].station});
     }
-    makeGraph();
-
-    std::vector<int> path(stations.size(), -1);
-    std::vector<double> dist(stations.size(), INF);
-    dist[s1]=0;
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> priQ;
-    priQ.push(Node(s1, 0));
-    while(!priQ.empty())
-    {
-        Node top=priQ.top();
-        priQ.pop();
-        if(top.stationID==s2)
-        {
-            break ;
-        }
-
-        for (int i=0; i<graph[top.stationID].size(); ++i)
-        {
-            Node &adjNode=graph[top.stationID][i];
-            if(top.distance+adjNode.distance<dist[adjNode.stationID])
-            {
-                path[adjNode.stationID]=top.stationID;
-                dist[adjNode.stationID]=top.distance+adjNode.distance;
-                priQ.push(Node(adjNode.stationID, dist[adjNode.stationID]));
-            }
-        }
+    stationsList.push_back(b.stationlist[0].station);
+    return b;
+}
+Solution SubwayGraph::queryTransferSumTime(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList, int tolerance, int starttime)
+{
+    Request a={starttime,s1,s2,tolerance,4};
+    Solution b;
+    b=sum_time_min_spfa(a);
+    for(int i=b.len-1;i>=1;i--){
+        stationsList.push_back(b.stationlist[i].station);
+        edgesList.push_back((Edge){b.stationlist[i].station,b.stationlist[i-1].station});
     }
-
-    if(path[s2]==-1)
-    {
-        return false;
-    }
-    int p=s2;
-    while(path[p]!=-1)
-    {
-        stationsList.push_front(p);
-        edgesList.push_front(Edge(path[p],p));
-        p=path[p];
-    }
-    stationsList.push_front(s1);
-
-//    qDebug()<<"s1="<<s1<<" s2="<<s2<<" size= "<<stationsList.size()<<" "<<edgesList.size()<<"\n";
-    return true;
+    stationsList.push_back(b.stationlist[0].station);
+    return b;
 }
 
 //获取最少换乘的线路
-bool SubwayGraph::queryTransferMinTransfer(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList)
+Solution SubwayGraph::queryTransferMinTransfer(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList, int tolerance, int starttime)
 {
-    stationsList.clear();
-    edgesList.clear();
-
-    if(s1==s2)
-    {
-        stationsList.push_back(s2);
-        stationsList.push_back(s1);
-        return true;
+    Request a={starttime,s1,s2,tolerance,2};
+    Solution b;
+    b=transfer_min_spfa(a);
+    for(int i=b.len-1;i>=1;i--){
+        stationsList.push_back(b.stationlist[i].station);
+        edgesList.push_back((Edge){b.stationlist[i].station,b.stationlist[i-1].station});
     }
+    stationsList.push_back(b.stationlist[0].station);
+    return b;
+}
 
-    std::vector<bool> linesVisted(lines.size(),false);
-    std::vector<int> path(stations.size(),-1);
-    path[s1]=-2;
-    std::queue<int> que;
-    que.push(s1);
-
-    while(!que.empty())
-    {
-        int top=que.front();
-        que.pop();
-        for (auto &l: stations[top].linesInfo)
-        {
-            if(!linesVisted[l])
-            {
-                linesVisted[l]=true;
-                for (auto &s: lines[l].stationsSet)
-                {
-                    if(path[s]==-1)
-                    {
-                        path[s]=top;
-                        que.push(s);
-                    }
-                }
-            }
-        }
+Solution SubwayGraph::queryTransferMinDis(int s1, int s2, QList<int>&stationsList, QList<Edge>&edgesList, int tolerance, int starttime)
+{
+    Request a={starttime,s1,s2,tolerance,2};
+    Solution b;
+    b=transfer_min_spfa(a);
+    for(int i=b.len-1;i>=1;i--){
+        stationsList.push_back(b.stationlist[i].station);
+        edgesList.push_back((Edge){b.stationlist[i].station,b.stationlist[i-1].station});
     }
-
-    if(path[s2]==-1)
-    {
-        return false;
-    }
-    int p=s2;
-    while(path[p]!=-2)
-    {
-        stationsList.push_front(p);
-        edgesList.push_front(Edge(path[p],p));
-        p=path[p];
-    }
-    stationsList.push_front(s1);
-    return true;
+    stationsList.push_back(b.stationlist[0].station);
+    return b;
 }

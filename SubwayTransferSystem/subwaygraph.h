@@ -1,14 +1,18 @@
 #ifndef SUBWAYGRAPH_H
 #define SUBWAYGRAPH_H
 
-#include "station.h"
-#include "line.h"
+#include "line_station.h"
+#include "transfer.h"
 #include <QString>
 #include <QPoint>
 #include <QVector>
 #include <QHash>
+#include <QColor>
+#include <QSet>
+#include <QPair>
 
 //图的邻接点结构
+typedef QPair<int,int> Edge;
 class Node{
 public:
     int stationID;      //邻接点ID
@@ -30,17 +34,18 @@ public:
 class SubwayGraph
 {
 protected:
-    QVector<Station> stations;          //存储所有站点
-    QVector<Line> lines;                //存储所有线路
+    QVector<Stations> stations;          //存储所有站点
+    QVector<Lines> lines;                //存储所有线路
     QHash<QString, int> stationsHash;   //站点名到存储位置的hash
     QHash<QString, int> linesHash;      //线路名到存储位置的hash
     QSet<Edge> edges;                   //所有边的集合
-    QVector<QVector<Node>> graph;       //地铁线路网络图
-
+    //QVector<QVector<Node>> graph;       //地铁线路网络图
+    QVector<QColor> color;
+    double minLongitude, minLatitude, maxLongitude, maxLatitude;
 public:
     //构造函数
     SubwayGraph();
-
+    void init();
     //获取线路名
     QString getLineName(int l);
     //获取线路颜色
@@ -71,25 +76,30 @@ public:
     //获取站点集合hash值
     QList<QString> getStationsNameList();
 
-    //添加新线路
-    void addLine(QString lineName, QColor color);
-    //添加新站点
-    void addStation(Station s);
-    //添加站点连接关系
-    void addConnection(int s1, int s2, int l);
-
+    QList<QPair<QString,QString>> traverseSimulate(QString stationName);
+    void set_crowd(int line,int starttime, int endtime, int tole);
+    QString timetableGet(int line, int station,int currenttime);
     //获取网络结构，用于前端显示
     void getGraph(QList<int>&stationsList, QList<Edge>&edgesList);
     //获取最少时间的线路
-    bool queryTransferMinTime(int s1, int s2,
+    Solution queryTransferMinTime(int s1, int s2,
                               QList<int>&stationsList,
-                              QList<Edge>&edgesList);
+                              QList<Edge>&edgesList,
+                              int tolerance, int starttime);
     //获取最少换乘的线路
-    bool queryTransferMinTransfer(int s1, int s2,
+    Solution queryTransferMinTransfer(int s1, int s2,
                                   QList<int>&stationsList,
-                                  QList<Edge>&edgesList);
-    //从文件读取数据
-    bool readFileData(QString fileName);
+                                  QList<Edge>&edgesList,
+                                  int tolerance, int starttime);
+    Solution queryTransferMinDis(int s1, int s2,
+                                  QList<int>&stationsList,
+                                  QList<Edge>&edgesList,
+                                  int tolerance, int starttime);
+    Solution queryTransferSumTime(int s1, int s2,
+                                  QList<int>&stationsList,
+                                  QList<Edge>&edgesList,
+                                  int tolerance, int starttime);
+
 
 private:
     //清空数据

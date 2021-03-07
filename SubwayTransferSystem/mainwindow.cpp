@@ -1,7 +1,9 @@
 #include "ui_mainwindow.h"
-#include "ui_managelines.h"
-#include "mainwindow.h"
 
+//#include "extrafunc.h"
+#include "ui_ExtraFunc.h"
+#include "ExtraFunc.h"
+#include "mainwindow.h"
 #include <QGraphicsItem>
 #include <QMessageBox>
 #include <QColorDialog>
@@ -10,6 +12,8 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+
+//int readFile_txt();
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -27,12 +31,14 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->graphicsView->setDragMode(QGraphicsView::ScrollHandDrag);
 
     initStatusBar();
-
-    manageLines=new ManageLines(this);
+    //extrafunc =new extrafunc;
+    extrafunc =new ExtraFunc(this);
     subwayGraph=new SubwayGraph;
     appHelp=new AppHelp();
-
-    bool flag = subwayGraph->readFileData(":/data/data/outLine.txt");
+    //qDebug() << QString("中文");
+    bool flag = readFile_txt();
+    //qDebug() << QString("DFA");
+    subwayGraph->init();
     if (!flag)
     {
         QMessageBox box;
@@ -59,23 +65,35 @@ MainWindow::~MainWindow()
     delete myView;
     delete scene;
     delete subwayGraph;
-    delete manageLines;
     delete appHelp;
+    //delete extrafunc;
 }
 
 //连接信号和槽函数
 void MainWindow::myConnect()
 {
-    connect(manageLines->ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabWidgetCurrentChanged(int)));
-    connect(manageLines->ui->pushButtonAddLine, SIGNAL(clicked()), this, SLOT(addLine()));
-    connect(manageLines->ui->pushButtonAddStation, SIGNAL(clicked()), this, SLOT(addStation()));
-    connect(manageLines->ui->pushButtonConnect, SIGNAL(clicked()), this, SLOT(addConnection()));
-    connect(manageLines->ui->pushButtonAddByText, SIGNAL(clicked()), this, SLOT(addByText()));
+    connect(extrafunc->ui->tabWidget,SIGNAL(currentChanged(int)),this,SLOT(tabWidgetCurrentChanged(int)));
+
+    connect(extrafunc->ui->POK,SIGNAL(clicked()),this,SLOT(set_crowd()));
+    connect(extrafunc->ui->pushButtontimetable,SIGNAL(clicked()),this,SLOT(timetableQuery()));
+
+    connect(extrafunc->ui->comboBoxtimetableline, SIGNAL(currentIndexChanged(QString)),
+            this, SLOT(timetableLineChanged(QString)));
     connect(ui->comboBoxStartLine, SIGNAL(currentIndexChanged(QString)),
             this, SLOT(transferStartLineChanged(QString)));
     connect(ui->comboBoxDstLine, SIGNAL(currentIndexChanged(QString)),
             this, SLOT(transferDstLineChanged(QString)));
+    connect(extrafunc->ui->comboBoxtraverseline, SIGNAL(currentIndexChanged(QString)),
+            this, SLOT(traverseLineChanged(QString)));
     connect(ui->pushButtonTransfer, SIGNAL(clicked()), this, SLOT(transferQuery()));
+    connect(extrafunc->ui->pushButton, SIGNAL(clicked()), this, SLOT(traverseStart()));
+
+    connect(extrafunc->ui->pushButton_1, SIGNAL(clicked()), this, SLOT(traverseButton1()));
+    connect(extrafunc->ui->pushButton_2, SIGNAL(clicked()), this, SLOT(traverseButton2()));
+    connect(extrafunc->ui->pushButton_3, SIGNAL(clicked()), this, SLOT(traverseButton3()));
+    connect(extrafunc->ui->pushButton_4, SIGNAL(clicked()), this, SLOT(traverseButton4()));
+    connect(extrafunc->ui->pushButton_5, SIGNAL(clicked()), this, SLOT(traverseButton5()));
+    connect(extrafunc->ui->pushButton_6, SIGNAL(clicked()), this, SLOT(traverseButton6()));
 
     QTimer *timer = new QTimer(this);//新建定时器
     connect(timer,SIGNAL(timeout()),this,SLOT(timerUpdate()));//关联定时器计满信号和相应的槽函数
@@ -88,6 +106,23 @@ void MainWindow::timerUpdate()
     QDateTime time = QDateTime::currentDateTime();
     QString str = time.toString("yyyy-MM-dd hh:mm:ss dddd");
     statusLabel2->setText(str);
+}
+void MainWindow::set_crowd()
+{
+    int line=subwayGraph->getLineHash(extrafunc->ui->comboBoxcrowd->currentText());
+    int starttime = extrafunc->ui->starttime->time().hour()*60+extrafunc->ui->starttime->time().minute();
+    int endtime = extrafunc->ui->endtime->time().hour()*60+extrafunc->ui->endtime->time().minute();
+    int tole = extrafunc->ui->crowd->value();
+    subwayGraph->set_crowd(line,starttime,endtime,tole);
+    QMessageBox box;
+
+    box.setWindowIcon(QIcon(":/icon/icon/add.png"));
+    box.setText("设置成功");
+    box.addButton(tr("确定"),QMessageBox::AcceptRole);
+    if(box.exec()==QMessageBox::Accepted)
+    {
+        box.close();
+    }
 }
 
 //初始状态栏
@@ -113,9 +148,9 @@ void MainWindow::initStatusBar()
     bar->addWidget(statusLabel2);
     bar->addWidget(statusLabel3);
 
-    statusLabel1->setText(tr("made by 1453381"));
+    statusLabel1->setText(tr("forked by NothatDinger"));
     statusLabel2->setText(tr("0000-00-00 00:00::00 星期 "));
-    statusLabel3->setText(tr("欢迎使用地铁换乘指南,详情帮助"));
+    statusLabel3->setText(tr("欢迎使用武汉地铁路线规划系统指南"));
 }
 
 //由线路表计算混合颜色
@@ -183,7 +218,7 @@ void MainWindow::drawEdges(const QList<Edge>& edgesList)
 }
 
 //绘制网络图的站点节点
-void MainWindow::drawStations (const QList<int>& stationsList)
+void MainWindow::drawStations(const QList<int>& stationsList)
 {
     for (int i=0; i<stationsList.size(); ++i)
     {
@@ -227,19 +262,79 @@ void MainWindow::updateTranserQueryInfo()
     statusLabel3->setText(tr("已更新数据"));
     QComboBox* comboL1=ui->comboBoxStartLine;
     QComboBox* comboL2=ui->comboBoxDstLine;
+    //QComboBox* comboL3=extrafunc->ui->comboBoxcrowd;
+    QComboBox* comboL3=extrafunc->ui->comboBoxcrowd;
+    QComboBox* comboL4=extrafunc->ui->comboBoxtimetableline;
+    QComboBox* comboL5=extrafunc->ui->comboBoxtraverseline;
 
     comboL1->clear();
     comboL2->clear();
+    comboL3->clear();
+    comboL4->clear();
+    comboL5->clear();
     QList<QString> linesList=subwayGraph->getLinesNameList();
     for(auto &a:linesList)
     {
         comboL1->addItem(a);
         comboL2->addItem(a);
+        comboL3->addItem(a);
+        comboL4->addItem(a);
+        comboL5->addItem(a);
     }
     transferStartLineChanged(comboL1->itemText(0));
     transferDstLineChanged(comboL2->itemText(0));
+    timetableLineChanged(comboL4->itemText(0));
+    traverseLineChanged(comboL5->itemText(0));
+    //crowdSetLineChanged(comboL3->itemText(0));
 }
 
+void MainWindow::crowdSetLineChanged()
+{
+    //QComboBox* combo=extrafunc->ui->comboBoxcrowd;
+    QComboBox* combo= extrafunc->ui->comboBoxcrowd;
+    combo->clear();
+
+    QList<QString> linesList=subwayGraph->getLinesNameList();
+
+    for(auto &a:linesList)
+    {
+        combo->addItem(a);
+    }
+}
+void MainWindow::timetableLineChanged(QString lineName)
+{
+    QComboBox* comboS1=extrafunc->ui->comboBoxtimetablestation;
+    comboS1->clear();
+
+    int lineHash=subwayGraph->getLineHash(lineName);
+    if(lineHash==-1)
+    {
+        return ;
+    }
+
+    QList<QString> stationsList=subwayGraph->getLineStationsList(lineHash);
+    for(auto &a:stationsList)
+    {
+        comboS1->addItem(a);
+    }
+}
+void MainWindow::traverseLineChanged(QString lineName)
+{
+    QComboBox* comboS1=extrafunc->ui->comboBoxtraversestation;
+    comboS1->clear();
+
+    int lineHash=subwayGraph->getLineHash(lineName);
+    if(lineHash==-1)
+    {
+        return ;
+    }
+
+    QList<QString> stationsList=subwayGraph->getLineStationsList(lineHash);
+    for(auto &a:stationsList)
+    {
+        comboS1->addItem(a);
+    }
+}
 //换乘出发线路改变槽函数
 void MainWindow::transferStartLineChanged(QString lineName)
 {
@@ -283,8 +378,9 @@ void MainWindow::transferQuery()
 {
     int s1=subwayGraph->getStationHash(ui->comboBoxStartStation->currentText());
     int s2=subwayGraph->getStationHash(ui->comboBoxDstStation->currentText());
-    int way=ui->radioButtonMinTime->isChecked()?1:2;
-
+    //int way=ui->radioButtonMinTime->isChecked()?1:2;
+    int tolerance = ui->tolerance->value();
+    int starttime = ui->starttime->time().hour()*60+ui->starttime->time().minute();
     if(s1==-1||s2==-1)
     {
         QMessageBox box;
@@ -302,24 +398,25 @@ void MainWindow::transferQuery()
     {
         QList<int> stationsList;
         QList<Edge> edgesList;
-        bool flag=true;
-        if(way==1)
-        {
-            flag=subwayGraph->queryTransferMinTime(s1, s2, stationsList, edgesList);
-        }
+        Solution b;
+        if(ui->radioButtonMinTime->isChecked())
+            b=subwayGraph->queryTransferMinTime(s1, s2, stationsList, edgesList, tolerance, starttime);
+        else if(ui->radioButtonMinTransfer->isChecked())
+            b=subwayGraph->queryTransferMinTransfer(s1, s2, stationsList, edgesList, tolerance, starttime);
+        else if(ui->radioButtonMinPrice)
+            b=subwayGraph->queryTransferMinDis(s1, s2, stationsList, edgesList, tolerance, starttime);
         else
-        {
-            flag=subwayGraph->queryTransferMinTransfer(s1, s2, stationsList, edgesList);
-        }
-
-        if(flag)
+            b=subwayGraph->queryTransferSumTime(s1, s2, stationsList, edgesList, tolerance, starttime);
+        if(b.status)
         {
             statusLabel3->setText(tr("换乘查询成功！"));
             scene->clear();
             drawEdges(edgesList);
             drawStations(stationsList);
-            QString text=way==1?("以下线路时间最短，共换乘"+QString::number(stationsList.size()-1)+"个站点\n\n"):
-                                ("以下线路换乘最少，共换乘"+QString::number(stationsList.size()-1)+"条线路\n\n");
+            QString text = ("以下线路耗时"+QString::number(b.time)+"min,所需花费"+QString::number(b.price)+"元，需要换乘"+QString::number(b.transfer_times)+"次,平均拥挤度"+QString::number(b.av_crowd)+"%,下一班车将于"+
+                            QString::number(b.next_bus_arrival/60)+":"+QString("%1").arg(b.next_bus_arrival%60,2,10,QChar('0'))+"到达\n\n");
+            if(b.status==2)
+                    text += ("注意，已超出地铁运行时间\n\n");
             for(int i=0; i<stationsList.size(); ++i)
             {
                 if(i)
@@ -340,7 +437,7 @@ void MainWindow::transferQuery()
             box.setWindowTitle(tr("换乘查询"));
             box.setWindowIcon(QIcon(":/icon/icon/query.png"));
             box.setIcon(QMessageBox::Warning);
-            box.setText(tr("您选择的起始和终止站点暂时无法到达！"));
+            box.setText(tr("您选择的起始和终止站点暂时无法到达！,可能是因为你容忍度太低了"));
             box.addButton(tr("确定"),QMessageBox::AcceptRole);
             if(box.exec()==QMessageBox::Accepted)
             {
@@ -349,190 +446,283 @@ void MainWindow::transferQuery()
         }
     }
 }
+void MainWindow::timetableQuery(){
+    int l1 = subwayGraph->getLineHash(extrafunc->ui->comboBoxtimetableline->currentText());
+    int s1 = subwayGraph->getStationHash(extrafunc->ui->comboBoxtimetablestation->currentText());
+    int time = extrafunc->ui->timetabletime->time().hour()*60+extrafunc->ui->timetabletime->time().minute();
+    QString text = subwayGraph->timetableGet(l1,s1,time);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertimetable;
+    browser->clear();
+    browser->setText(text);
+}
+void MainWindow::traverseStart(){
+    QString currentstation = extrafunc->ui->comboBoxtraversestation->currentText();
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(currentstation);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+currentstation);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
 
-//添加列表视图部件变化槽函数
+void MainWindow::traverseButton1(){
+    QString Name = extrafunc->buttonlist[0];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
+void MainWindow::traverseButton2(){
+    QString Name = extrafunc->buttonlist[1];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
+void MainWindow::traverseButton3(){
+    QString Name = extrafunc->buttonlist[2];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
+void MainWindow::traverseButton4(){
+    QString Name = extrafunc->buttonlist[3];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
+void MainWindow::traverseButton5(){
+    QString Name = extrafunc->buttonlist[4];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
+void MainWindow::traverseButton6(){
+    QString Name = extrafunc->buttonlist[5];
+    QList<QPair<QString,QString>> list = subwayGraph->traverseSimulate(Name);
+    QTextBrowser* browser = extrafunc->ui->textBrowsertraverse;
+    browser->clear();
+    browser->setText(QString("当前站点为")+Name);
+    QPushButton* b[6] ;
+    b[0] = extrafunc->ui->pushButton_1;
+    b[1] = extrafunc->ui->pushButton_2;
+    b[2] = extrafunc->ui->pushButton_3;
+    b[3] = extrafunc->ui->pushButton_4;
+    b[4] = extrafunc->ui->pushButton_5;
+    b[5] = extrafunc->ui->pushButton_6;
+    QLabel *l[6];
+    l[0] = extrafunc->ui->label_11;
+    l[1] = extrafunc->ui->label_12;
+    l[2] = extrafunc->ui->label_13;
+    l[3] = extrafunc->ui->label_14;
+    l[4] = extrafunc->ui->label_15;
+    l[5] = extrafunc->ui->label_16;
+    extrafunc->buttonlist.clear();
+    for(int i = 0 ; i < list.size() ; i ++){
+        b[i]->setText(list[i].first);
+        l[i]->setText(list[i].second);
+        b[i]->setVisible(true);
+        l[i]->setVisible(true);
+        extrafunc->buttonlist.push_back(list[i].first);
+    }
+    for(int i = list.size();i < 6 ; i++){
+        b[i]->setVisible(false);
+        l[i]->setVisible(false);
+    }
+}
 void MainWindow::tabWidgetCurrentChanged(int index)
 {
-    QWidget* widget=manageLines->ui->tabWidget->currentWidget();
+    QWidget* widget=extrafunc->ui->tabWidget->currentWidget();
 
-    if(widget==manageLines->tabWigetsVector[1])
+    if(widget==extrafunc->tabWigetsVector[0])
     {
-        manageLines->linesNameList=subwayGraph->getLinesNameList();
-        manageLines->updateLinesListWidget();
+        extrafunc->linesNameList=subwayGraph->getLinesNameList();
+        crowdSetLineChanged();
     }
-    else if(widget==manageLines->tabWigetsVector[2])
+    else if(widget==extrafunc->tabWigetsVector[1])
     {
-        manageLines->linesNameList=subwayGraph->getLinesNameList();
-        manageLines->stationsNameList=subwayGraph->getStationsNameList();
-        manageLines->ui->comboBoxConnectStation1->setMaxCount(manageLines->stationsNameList.size());
-        manageLines->ui->comboBoxConnectStation2->setMaxCount(manageLines->stationsNameList.size());
-        manageLines->ui->comboBoxConnectLine->setMaxCount(manageLines->linesNameList.size());
-        manageLines->updateComboBox();
+        extrafunc->linesNameList=subwayGraph->getLinesNameList();
+        extrafunc->stationsNameList=subwayGraph->getStationsNameList();
+        //extrafunc->ui->comboBoxConnectStation1->setMaxCount(extrafunc->stationsNameList.size());
+        //extrafunc->ui->comboBoxConnectStation2->setMaxCount(extrafunc->stationsNameList.size());
+        //extrafunc->ui->comboBoxConnectLine->setMaxCount(extrafunc->linesNameList.size());
+        //extrafunc->updateComboBox();
+    }
+    else
+    {
+        extrafunc->ui->pushButton_1->setVisible(false);
+        extrafunc->ui->pushButton_2->setVisible(false);
+        extrafunc->ui->pushButton_3->setVisible(false);
+        extrafunc->ui->pushButton_4->setVisible(false);
+        extrafunc->ui->pushButton_5->setVisible(false);
+        extrafunc->ui->pushButton_6->setVisible(false);
+        extrafunc->ui->label_11->setVisible(false);
+        extrafunc->ui->label_12->setVisible(false);
+        extrafunc->ui->label_13->setVisible(false);
+        extrafunc->ui->label_14->setVisible(false);
+        extrafunc->ui->label_15->setVisible(false);
+        extrafunc->ui->label_16->setVisible(false);
     }
     Q_UNUSED(index);
 }
 
-//添加线路功能函数
-void MainWindow::addLine()
-{
-    QMessageBox box;
-    box.setWindowTitle(tr("添加线路"));
-    box.setWindowIcon(QIcon(":/icon/icon/subway.png"));
-
-    if(manageLines->lineName.isEmpty())
-    {
-        box.setIcon(QMessageBox::Warning);
-        box.setText(tr("请输入线路名称！"));
-    }
-    else if(subwayGraph->getLineHash(manageLines->lineName)==-1)
-    {
-        box.setIcon(QMessageBox::Information);
-        box.setText(tr("线路：")+manageLines->lineName+tr(" 添加成功！"));
-        subwayGraph->addLine(manageLines->lineName, manageLines->lineColor);
-        updateTranserQueryInfo();
-    }
-    else
-    {
-        box.setIcon(QMessageBox::Critical);
-        box.setText(tr("添加失败！\n错误原因：线路名已存在！"));
-    }
-
-    box.addButton(tr("确定"),QMessageBox::AcceptRole);
-    if(box.exec()==QMessageBox::Accepted)
-    {
-        box.close();
-    }
-    updateTranserQueryInfo();
-}
-
-//添加站点功能函数
-void MainWindow::addStation()
-{
-    QMessageBox box;
-    box.setWindowTitle(tr("添加站点"));
-    box.setWindowIcon(QIcon(":/icon/icon/station.png"));
-
-    if(manageLines->stationName.isEmpty())
-    {
-        box.setIcon(QMessageBox::Warning);
-        box.setText(tr("请输入站点名称！"));
-    }
-    else if(manageLines->linesSelected.isEmpty())
-    {
-        box.setIcon(QMessageBox::Warning);
-        box.setText(tr("请选择站点所属线路！"));
-    }
-    else
-    {
-        if(subwayGraph->getStationHash(manageLines->stationName)!=-1)
-        {
-            box.setIcon(QMessageBox::Critical);
-            box.setText(tr("添加失败！\n错误原因：站点已存在！"));
-        }
-        else
-        {
-            Station s(manageLines->stationName, manageLines->longitude, manageLines->latitude,
-                      subwayGraph->getLinesHash(manageLines->linesSelected));
-            subwayGraph->addStation(s);
-            box.setText(tr("站点：")+manageLines->stationName+tr(" 添加成功！"));
-            updateTranserQueryInfo();
-        }
-    }
-
-    box.addButton(tr("确定"),QMessageBox::AcceptRole);
-    if(box.exec()==QMessageBox::Accepted)
-    {
-        box.close();
-    }
-    updateTranserQueryInfo();
-    on_actionLineMap_triggered();
-}
-
-//添加连接功能函数
-void MainWindow::addConnection()
-{
-    QString station1=manageLines->ui->comboBoxConnectStation1->currentText();
-    QString station2=manageLines->ui->comboBoxConnectStation2->currentText();
-    int s1=subwayGraph->getStationHash(station1);
-    int s2=subwayGraph->getStationHash(station2);
-    int l=subwayGraph->getLineHash(manageLines->ui->comboBoxConnectLine->currentText());
-
-    QMessageBox box;
-    box.setWindowTitle(tr("添加连接"));
-    box.setWindowIcon(QIcon(":/icon/icon/connect.png"));
-
-    if(s1==-1||s2==-1||l==-1)
-    {
-        box.setIcon(QMessageBox::Warning);
-        box.setText(tr("请选择已有的站点和线路！"));
-    }
-    else if(s1==s2)
-    {
-        box.setIcon(QMessageBox::Warning);
-        box.setText(tr("同一站点不需要连接！"));
-    }
-    else if(!subwayGraph->getStationLinesInfo(s1).contains(l))
-    {
-        box.setIcon(QMessageBox::Critical);
-        box.setText(tr("连接失败！\n错误原因：所属线路不包含站点1"));
-    }
-    else if(!subwayGraph->getStationLinesInfo(s2).contains(l))
-    {
-        box.setIcon(QMessageBox::Critical);
-        box.setText(tr("连接失败！\n错误原因：所属线路不包含站点2"));
-    }
-    else
-    {
-        box.setIcon(QMessageBox::Information);
-        box.setText(tr("添加连接成功！"));
-        subwayGraph->addConnection(s1,s2,l);
-    }
-    if(box.exec()==QMessageBox::Accepted)
-    {
-        box.close();
-    }
-    updateTranserQueryInfo();
-    on_actionLineMap_triggered();
-}
-
-//文本方式添加功能函数
-void MainWindow::addByText()
-{
-    QString writeFile="userAdd.txt";
-    QFile file(writeFile);
-    if(!file.open(QIODevice::WriteOnly|QIODevice::Text))
-    {
-        QMessageBox::critical(NULL, "提示", "无法创建添加文件");
-            return ;
-    }
-    QTextStream out(&file);
-    out<<manageLines->ui->textEdit->toPlainText();
-    file.close();
-
-    QMessageBox box;
-    box.setWindowTitle(tr("文本添加"));
-    box.setWindowIcon(QIcon(":/icon/icon/add.png"));
-
-    bool flag=subwayGraph->readFileData(writeFile);
-    if(flag)
-    {
-        box.setIcon(QMessageBox::Information);
-        box.setText(tr("添加成功"));
-    }
-    else
-    {
-        box.setIcon(QMessageBox::Critical);
-        box.setText(tr("添加失败，数据被擦除！"));
-    }
-    box.addButton(tr("确定"),QMessageBox::AcceptRole);
-    if(box.exec()==QMessageBox::Accepted)
-    {
-        box.close();
-    }
-    updateTranserQueryInfo();
-    on_actionLineMap_triggered();
-    return ;
-}
 
 //视图放大槽函数
 void MainWindow::on_toolEnlarge_triggered()
@@ -548,114 +738,36 @@ void MainWindow::on_toolShrink_triggered()
     ui->graphicsView->scale(2.0/3,2.0/3);
 }
 
-//动作添加所有槽函数
-void MainWindow::on_actionAddAll_triggered()
-{
-    statusLabel3->setText(tr("添加线路、站点、连接关系"));
-    manageLines->setAllVisible();
-    manageLines->show();
-}
 
-//动作添加线路槽函数
-void MainWindow::on_actionAddLine_triggered()
-{
-    statusLabel3->setText(tr("添加线路"));
-    manageLines->setAddLineVisible();
-    manageLines->show();
-}
 
-//动作添加站点槽函数
-void MainWindow::on_actionAddStation_triggered()
-{
-    statusLabel3->setText(tr("添加站点"));
-    manageLines->setAddStationVisible();
-    manageLines->show();
-}
-
-//动作添加连接槽函数
-void MainWindow::on_actionAddConnect_triggered()
-{
-    statusLabel3->setText(tr("添加连接关系"));
-    manageLines->setAddConnectionVisible();
-    manageLines->show();
-}
-
-//动作文本方式添加槽函数
-void MainWindow::on_actionAddByText_triggered()
-{
-    statusLabel3->setText(tr("文本方式简易添加"));
-    manageLines->setAddByTextVisible();
-    manageLines->show();
-}
 
 //动作查看所有线路图槽函数
 void MainWindow::on_actionLineMap_triggered()
 {
-    statusLabel3->setText(tr("图示：上海地铁网络线路图"));
+    statusLabel3->setText(tr("图示：武汉地铁网络线路图"));
     scene->clear();
     QList<int> stationsList;
     QList<Edge> edgesList;
     subwayGraph->getGraph(stationsList,edgesList);
     drawEdges(edgesList);
     drawStations(stationsList);
-//    qDebug()<<"stations.size()="<<stationsList.size()<<" edges.size()="<<edgesList.size();
+//    qDebug()<<"stations.size()="<<stationsList.size()m<<" edges.size()="<<edgesList.size();
 }
 
-//动作是否显示状态栏槽函数
-void MainWindow::on_actionstatusBar_triggered(bool checked)
+void MainWindow::on_actionsetcrowd_triggered()
 {
-    if(checked)
-    {
-        ui->statusBar->show();
-    }
-    else
-    {
-        ui->statusBar->hide();
-    }
+    statusLabel3->setText(tr("请修改拥挤度"));
+    crowdSetLineChanged();
+    extrafunc->show();
+    //ui->graphicsView->scale(1.5,1.5);
+
+}
+void MainWindow::on_actionExtraFunc_triggered()
+{
+    statusLabel3->setText(tr("额外功能"));
+    //crowdSetLineChanged();
+    extrafunc->show();
+    //ui->graphicsView->scale(1.5,1.5);
+
 }
 
-//动作是否显示工具栏槽函数
-void MainWindow::on_actiontoolBar_triggered(bool checked)
-{
-    if(checked)
-    {
-        ui->mainToolBar->show();
-    }
-    else
-    {
-        ui->mainToolBar->hide();
-    }
-}
-
-//动作关于Qt槽函数
-void MainWindow::on_actionQt_triggered()
-{
-    QMessageBox::aboutQt(this,tr("关于Qt"));
-}
-
-//动作关于作者槽函数
-void MainWindow::on_actionAuthor_triggered()
-{
-    QMessageBox box;
-    box.setWindowTitle(tr("关于制作者"));
-    box.setIcon(QMessageBox::Information);
-    box.setText(tr("Author : 1453381 \n"
-                   "School : TJ \n"
-                   "Major : Computer Science \n"
-                   "Emai : 767089181@qq.com \n"));
-    box.addButton(tr("确定"),QMessageBox::AcceptRole);
-    if(box.exec() == QMessageBox::Accepted)
-        box.close();
-}
-
-//动作帮助菜单槽函数
-void MainWindow::on_actionuseHelp_triggered()
-{
-    appHelp->show();
-}
-
-//动作关闭程序槽函数
-void MainWindow::on_actionClose_triggered()
-{
-    close();
-}

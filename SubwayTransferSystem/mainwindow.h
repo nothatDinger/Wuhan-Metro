@@ -3,7 +3,9 @@
 
 #include "graphics_view_zoom.h"
 #include "subwaygraph.h"
-#include "managelines.h"
+#include "line_station.h"
+#include "transfer.h"
+#include "ExtraFunc.h"
 #include "apphelp.h"
 
 #include <QMainWindow>
@@ -24,63 +26,48 @@ public:
     ~MainWindow();
 
 public slots:
+    void set_crowd();
     //视图放大槽函数
     void on_toolEnlarge_triggered();
     //动作视图缩小槽函数
     void on_toolShrink_triggered();
-    //动作添加所有槽函数
-    void on_actionAddAll_triggered();
-    //动作添加线路槽函数
-    void on_actionAddLine_triggered();
-    //动作添加站点槽函数
-    void on_actionAddStation_triggered();
-    //动作添加连接槽函数
-    void on_actionAddConnect_triggered();
-    //动作文本方式添加槽函数
-    void on_actionAddByText_triggered();
+
+    void on_actionsetcrowd_triggered();
+    void on_actionExtraFunc_triggered();
+
     //动作查看所有线路图槽函数
     void on_actionLineMap_triggered();
-    //动作是否显示状态栏槽函数
-    void on_actionstatusBar_triggered(bool checked);
-    //动作是否显示工具栏槽函数
-    void on_actiontoolBar_triggered(bool checked);
-    //动作关于Qt槽函数
-    void on_actionQt_triggered();
-    //动作关于作者槽函数
-    void on_actionAuthor_triggered();
-    //动作帮助菜单槽函数
-    void on_actionuseHelp_triggered();
-    //动作关闭程序槽函数
-    void on_actionClose_triggered();
 
     //时间更新槽函数
     void timerUpdate();
-    //添加列表视图部件变化槽函数
     void tabWidgetCurrentChanged(int index);
-    //添加线路功能函数
-    void addLine();
-    //添加站点功能函数
-    void addStation();
-    //添加连接功能函数
-    void addConnection();
-    //文本方式添加功能函数
-    void addByText();
     //更新换乘选择信息
     void updateTranserQueryInfo();
     //换乘出发线路改变槽函数
     void transferStartLineChanged(QString lineName);
     //换乘目的线路改变槽函数
     void transferDstLineChanged(QString lineNames);
+    void crowdSetLineChanged();
+    void timetableLineChanged(QString lineNames);
+    void traverseLineChanged(QString lineNames);
     //换乘查询槽函数
     void transferQuery();
-
+    void timetableQuery();
+    void traverseStart();
+    void traverseButton1();
+    void traverseButton2();
+    void traverseButton3();
+    void traverseButton4();
+    void traverseButton5();
+    void traverseButton6();
 
 protected:
     Ui::MainWindow *ui;             //主窗口UI
     Graphics_view_zoom *myView;     //自定义视图，用于鼠标缩放
     QGraphicsScene *scene;          //场景
     SubwayGraph* subwayGraph;       //后端管理类
-    ManageLines* manageLines;       //添加功能前端管理类
+    ExtraFunc* extrafunc;     //添加功能前端管理类
+    //Tolerance* tolerance;
     AppHelp* appHelp;               //帮助显示类
 
     //由线路表计算混合颜色

@@ -19,6 +19,10 @@
     <qresource prefix="/data">
         <file>data/outLine.txt</file>
         <file>data/demo.txt</file>
+        <file>data/subway.CSV</file>
+        <file>data/subwayLine.txt</file>
+        <file>../../my_subway/data/subway.txt</file>
+        <file>data/subway.txt</file>
     </qresource>
     <qresource prefix="/html">
         <file>html/helpAddByText.html</file>

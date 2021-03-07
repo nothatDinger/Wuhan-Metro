@@ -24,26 +24,31 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += \
+    ExtraFunc.cpp \
+    HashTable.c \
+    line_station.c \
         main.cpp \
         mainwindow.cpp \
     graphics_view_zoom.cpp \
-    station.cpp \
     subwaygraph.cpp \
-    managelines.cpp \
-    apphelp.cpp
+    apphelp.cpp \
+    transfer.c
 
 HEADERS += \
+    ExtraFunc.h \
+    HashTable.h \
+    line_station.h \
         mainwindow.h \
     graphics_view_zoom.h \
-    station.h \
-    line.h \
     subwaygraph.h \
-    managelines.h \
-    apphelp.h
+    apphelp.h \
+    transfer.h
 
 FORMS += \
-       mainwindow.ui \
-    managelines.ui
+       ExtraFunc.ui \
+       mainwindow.ui
 
 RESOURCES += \
     resource.qrc
+
+DISTFILES +=
