@@ -2,26 +2,15 @@
     <qresource prefix="/icon">
         <file>icon/enlarge.png</file>
         <file>icon/shrink.png</file>
-        <file>icon/connect.png</file>
-        <file>icon/station.png</file>
-        <file>icon/subway.png</file>
         <file>icon/add.png</file>
-        <file>icon/all.png</file>
-        <file>icon/text.png</file>
-        <file>icon/query.png</file>
         <file>icon/map.png</file>
         <file>icon/metro-shanghai.png</file>
         <file>icon/splash.png</file>
-        <file>icon/mouse.png</file>
-        <file>icon/qt.png</file>
-        <file>icon/help.png</file>
+        <file>icon/splash2.png</file>
+        <file>icon/metro-wuhan.png</file>
     </qresource>
     <qresource prefix="/data">
-        <file>data/outLine.txt</file>
-        <file>data/demo.txt</file>
         <file>data/subway.CSV</file>
-        <file>data/subwayLine.txt</file>
-        <file>../../my_subway/data/subway.txt</file>
         <file>data/subway.txt</file>
     </qresource>
     <qresource prefix="/html">

@@ -82,7 +82,7 @@ public:
         font.setFamily(QString::fromUtf8("Consolas"));
         MainWindow->setFont(font);
         QIcon icon;
-        icon.addFile(QString::fromUtf8(":/icon/icon/metro-shanghai.png"), QSize(), QIcon::Normal, QIcon::Off);
+        icon.addFile(QString::fromUtf8(":/icon/icon/metro-wuhan.png"), QSize(), QIcon::Normal, QIcon::Off);
         MainWindow->setWindowIcon(icon);
         MainWindow->setIconSize(QSize(24, 24));
         toolEnlarge = new QAction(MainWindow);

@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<math.h>
+#include <unistd.h>
 //#include<QDebug>
 #define PI 3.1415926
 #define EARTH_RADIUS 6378.137
@@ -13,12 +14,11 @@ Edges edge[1000];
 int hea[400];
 int edgeNum;
 int StationNum;
-int LineNum;
-//extern int HashTable[HASHSIZE];
-//extern int hashvalue[HASHSIZE];
-void InitHashTable();
-void Insert_Hash(char* data,int id);
-int Search(char*data);
+
+
+// @description 根据简化约定设置线路各个时间点的拥挤度
+// @params None
+// @return None
 void crowd_simulation_init(){
     int i ;
     for(i = 0 ; i <= 24*60; i++){
@@ -49,18 +49,23 @@ void crowd_simulation_init(){
     }
 
 }
+// @description 读入文件中的站点数据并进行全局初始化
+// @params None
+// @return Mone
 int readFile_txt(){
 
     FILE *fp;
-    fp = fopen("C:/Users/13476726334/Desktop/DIR/WorkDirForVSC/C/SubwaySystem/my_subway/data/subway.txt","r");
-    //fp = fopen(":/data/data/subway.txt","r");
+    char buff[300];
+    getcwd(buff,sizeof(buff));
+    strcat(buff,".\\data\\subway.txt");
+    fp = fopen(buff,"r");
     if (!fp) {
         fprintf(stderr, "failed to open file for reading\n");
         return 0;
     }
 
-    char stationname[100];
-    char linename[100];
+    char stationname[50];
+    char linename[50];
     double longtitude,latitude;
     int linenum,num=0,i;
     InitHashTable();
@@ -68,7 +73,6 @@ int readFile_txt(){
         int num_in_hash = Search(stationname);
         int tmp = (num_in_hash == NUM_NULL)? num:num_in_hash;
         if( num_in_hash == NUM_NULL){//                                     对站点名hash处理
-            //TotalStaions[num].name = (char*)malloc(sizeof(char)*strlen(stationname));
             strcpy(TotalStaions[num].name,stationname);
             TotalStaions[num].stationID=num;
             Insert_Hash(stationname,num);
@@ -78,13 +82,12 @@ int readFile_txt(){
         }
         if( MaxLineNum < linenum ){//                                       将各种线路站点信息存入全局变量数组里
             TotalStaions[tmp].linesInfo[TotalStaions[tmp].linesLength++] = linenum;
-            //TotalLines[linenum].name = (char*)malloc(sizeof(char)*strlen(linename));
             strcpy(TotalLines[linenum].name,linename);
             MaxLineNum = linenum;
             TotalLines[linenum].startStationID=tmp;
             TotalLines[linenum].lineID = linenum;
             TotalLines[linenum].stat[TotalLines[linenum].statLength++] = tmp;
-           // TotalLines[linenum].bus_gap = 3;
+            TotalLines[linenum].bus_gap = 3;
         }
         else if(MaxLineNum == linenum){
             TotalLines[linenum].stat[TotalLines[linenum].statLength++] = tmp;
@@ -92,27 +95,27 @@ int readFile_txt(){
         }
     }
     StationNum = num;
-    LineNum = LINESIZE ;
     for(i=0;i<MaxLineNum;i++){
         TotalLines[i].finalStationID = TotalLines[i].stat[TotalLines[i].statLength-1];
         TotalLines[i].startStationID = TotalLines[i].stat[0];
     }
     crowd_simulation_init();
     fclose(fp);
-    //qDebug() << QString("hello");
-    //printf("%s","hello");
-    //showT();
     return 1;
 }
 
 
-
+// @description 转换角度为弧度
+// @params double 角度
+// @return double 弧度
 double radian(double d)
 {
     return d * PI / 180.0;   //角度1˚ = π / 180
 }
 
-//计算距离
+// @description 根据两个地点的敬畏度计算距离（单位为km）
+// @params double * 4 纬度 经度 纬度 经度
+// @return double 距离
 double get_distance(double lat1, double lng1, double lat2, double lng2)
 {
     double radLat1 = radian(lat1);
@@ -127,6 +130,9 @@ double get_distance(double lat1, double lng1, double lat2, double lng2)
     return dst;
 }
 
+// @description 根据存储的线路和站点信息构建图的邻接表
+// @params None
+// @return None
 void constructGraph(){
     int i,j,edgeNum=0;
     for(i=0;i<=MaxLineNum;i++){

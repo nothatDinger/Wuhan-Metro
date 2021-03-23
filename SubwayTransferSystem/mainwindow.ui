@@ -29,7 +29,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resource.qrc">
-    <normaloff>:/icon/icon/metro-shanghai.png</normaloff>:/icon/icon/metro-shanghai.png</iconset>
+    <normaloff>:/icon/icon/metro-wuhan.png</normaloff>:/icon/icon/metro-wuhan.png</iconset>
   </property>
   <property name="iconSize">
    <size>

@@ -1,8 +1,6 @@
 #include "ui_mainwindow.h"
-
-//#include "extrafunc.h"
-#include "ui_ExtraFunc.h"
-#include "ExtraFunc.h"
+#include "ui_extrafunc.h"
+#include "extrafunc.h"
 #include "mainwindow.h"
 #include <QGraphicsItem>
 #include <QMessageBox>
@@ -12,6 +10,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+#include <QDir>
 
 //int readFile_txt();
 
@@ -19,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+
     ui->setupUi(this);
 
     myView = new Graphics_view_zoom(ui->graphicsView);
@@ -34,16 +34,18 @@ MainWindow::MainWindow(QWidget *parent) :
     //extrafunc =new extrafunc;
     extrafunc =new ExtraFunc(this);
     subwayGraph=new SubwayGraph;
-    appHelp=new AppHelp();
-    //qDebug() << QString("中文");
+    //appHelp=new AppHelp();
+
+
+    //qDebug()<<"current currentPath: "<<QFile(":/data/data").decodeName(":/data/data");
     bool flag = readFile_txt();
-    //qDebug() << QString("DFA");
     subwayGraph->init();
     if (!flag)
     {
         QMessageBox box;
         box.setWindowTitle(tr("error information"));
         box.setIcon(QMessageBox::Warning);
+
         box.setText("读取数据错误!\n将无法展示内置线路！");
         box.addButton(tr("确定"), QMessageBox::AcceptRole);
         if (box.exec() == QMessageBox::Accepted)
@@ -65,7 +67,7 @@ MainWindow::~MainWindow()
     delete myView;
     delete scene;
     delete subwayGraph;
-    delete appHelp;
+   // delete appHelp;
     //delete extrafunc;
 }
 
@@ -700,10 +702,6 @@ void MainWindow::tabWidgetCurrentChanged(int index)
     {
         extrafunc->linesNameList=subwayGraph->getLinesNameList();
         extrafunc->stationsNameList=subwayGraph->getStationsNameList();
-        //extrafunc->ui->comboBoxConnectStation1->setMaxCount(extrafunc->stationsNameList.size());
-        //extrafunc->ui->comboBoxConnectStation2->setMaxCount(extrafunc->stationsNameList.size());
-        //extrafunc->ui->comboBoxConnectLine->setMaxCount(extrafunc->linesNameList.size());
-        //extrafunc->updateComboBox();
     }
     else
     {
@@ -751,7 +749,6 @@ void MainWindow::on_actionLineMap_triggered()
     subwayGraph->getGraph(stationsList,edgesList);
     drawEdges(edgesList);
     drawStations(stationsList);
-//    qDebug()<<"stations.size()="<<stationsList.size()m<<" edges.size()="<<edgesList.size();
 }
 
 void MainWindow::on_actionsetcrowd_triggered()
@@ -759,15 +756,12 @@ void MainWindow::on_actionsetcrowd_triggered()
     statusLabel3->setText(tr("请修改拥挤度"));
     crowdSetLineChanged();
     extrafunc->show();
-    //ui->graphicsView->scale(1.5,1.5);
 
 }
 void MainWindow::on_actionExtraFunc_triggered()
 {
     statusLabel3->setText(tr("额外功能"));
-    //crowdSetLineChanged();
     extrafunc->show();
-    //ui->graphicsView->scale(1.5,1.5);
 
 }
 

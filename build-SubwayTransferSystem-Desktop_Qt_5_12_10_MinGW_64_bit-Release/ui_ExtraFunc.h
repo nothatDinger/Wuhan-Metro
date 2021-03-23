@@ -1,5 +1,5 @@
 /********************************************************************************
-** Form generated from reading UI file 'ExtraFunc.ui'
+** Form generated from reading UI file 'extrafunc.ui'
 **
 ** Created by: Qt User Interface Compiler version 5.12.10
 **

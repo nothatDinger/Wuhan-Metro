@@ -5,8 +5,8 @@
 #include "subwaygraph.h"
 #include "line_station.h"
 #include "transfer.h"
-#include "ExtraFunc.h"
-#include "apphelp.h"
+#include "extrafunc.h"
+//#include "apphelp.h"
 
 #include <QMainWindow>
 #include <QLabel>
@@ -68,7 +68,7 @@ protected:
     SubwayGraph* subwayGraph;       //后端管理类
     ExtraFunc* extrafunc;     //添加功能前端管理类
     //Tolerance* tolerance;
-    AppHelp* appHelp;               //帮助显示类
+    //AppHelp* appHelp;               //帮助显示类
 
     //由线路表计算混合颜色
     QColor getLinesColor(const QList<int>& linesList);

@@ -10,9 +10,7 @@ extern Lines TotalLines[LINESIZE];
 extern int MaxLineNum;
 extern Edges edge[1000];
 extern int hea[400];
-extern int edgeNum;
 extern int StationNum;
-extern int LineNum;
 //构造函数
 SubwayGraph::SubwayGraph()
 {
@@ -30,7 +28,7 @@ void SubwayGraph::init(){
         for(int j = hea[i];j;j = edge[j].nex)
             insertEdge(i,edge[j].to);
     }
-    for(int i=0;i<LineNum;i++)
+    for(int i=0;i<MaxLineNum;i++)
          if( TotalLines[i].lineID!=0){
                lines.push_back(TotalLines[i]);
                linesHash[QString::fromUtf8(TotalLines[i].name)] = i;
@@ -162,16 +160,12 @@ QList<QString> SubwayGraph::getLinesNameList()
 QList<QString> SubwayGraph::getLineStationsList(int l)
 {
     QList<QString> stationsList;
-
-
-        for(int i = 0 ; i < TotalLines[l].statLength; i ++ ){
-            int a = TotalLines[l].stat[i];
-            stationsList.push_back(QString::fromUtf8(stations[a].name));
-        }
+    for(int i = 0 ; i < TotalLines[l].statLength; i ++ ){
+        int a = TotalLines[l].stat[i];
+        stationsList.push_back(QString::fromUtf8(stations[a].name));
+    }
     return stationsList;
 }
-
-
 
 //更新边界经纬度
 void SubwayGraph::updateMinMaxLongiLati()
@@ -209,7 +203,6 @@ QPointF SubwayGraph::getMaxCoord()
 QList<int> SubwayGraph::getCommonLines(int s1, int s2)
 {
     QList<int> linesList;
-
     for(int i=0;i<TotalStaions[s1].linesLength;i++){
         for(int j=0;j<TotalStaions[s2].linesLength;j++)
               if(TotalStaions[s1].linesInfo[i] == TotalStaions[s2].linesInfo[j])

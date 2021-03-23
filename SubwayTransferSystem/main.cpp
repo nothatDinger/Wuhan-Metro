@@ -6,16 +6,15 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    //QTextCodec::setCodecForCStrings(QTextCodec::codecForName("GBK"));
-    QPixmap pixmap(":/icon/icon/splash.png");
-    QSplashScreen splash(pixmap);//程序启动画面
+    QPixmap pixmap(":/icon/icon/splash2.png");
+    QSplashScreen splash2(pixmap);//程序启动画面
     for(qint64 i=5555555;i>0;i--)
-        splash.show();
+        splash2.show();
 
     MainWindow w;
     w.show();
 
-    splash.finish(&w);
+    splash2.finish(&w);
 
     return a.exec();
 }
